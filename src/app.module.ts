@@ -9,8 +9,11 @@ import { UserLinkSchema } from './schemas/user-link.schema';
 
 @Module({
   imports: [
-    MongooseModule.forRootAsync({
-      useClass: MongoConfigService,
+    // MongooseModule.forRootAsync({
+    //   useClass: MongoConfigService,
+    // }),
+    MongooseModule.forRoot('mongodb://localhost:27017/nest_main',{
+      autoCreate: true
     }),
     MongooseModule.forFeature([
       {
