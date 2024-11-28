@@ -2,6 +2,8 @@ import { Controller, Get, HttpStatus } from '@nestjs/common';
 import { AppService } from './app.service';
 import { MessagePattern } from '@nestjs/microservices';
 import { IUserSearchResponse } from './interfaces/user-search-response.interface';
+import { IUser } from './interfaces/user.interface';
+import { IUserCreateResponse } from './interfaces/user-create-response.interface';
 
 @Controller()
 export class AppController {
@@ -91,6 +93,83 @@ public testHandler() {
     //     user: null,
     //   };
     // }
+    
+
+    return result;
+  }
+
+
+  @MessagePattern('user_create')
+  public async createUser(userParams: IUser): Promise<IUserCreateResponse> {
+    let result: IUserCreateResponse;
+    console.log('these are create user params',userParams);
+    
+
+    if (userParams) {
+      const usersWithEmail = await this.appService.searchUser({
+        email: userParams.email,
+      });
+
+      if (usersWithEmail && usersWithEmail.length > 0) {
+        result = {
+          status: HttpStatus.CONFLICT,
+          message: 'user_create_conflict',
+          user: null,
+          errors: {
+            email: {
+              message: 'Email already exists',
+              path: 'email',
+            },
+          },
+        };
+      } else {
+        try {
+          userParams.is_confirmed = false;
+          const createdUser = await this.appService.createUser(userParams);
+          console.log('createdUser???',createdUser);
+          
+          const userLink = await this.appService.createUserLink(
+            createdUser.id,
+          );
+          delete createdUser.password;
+          result = {
+            status: HttpStatus.CREATED,
+            message: 'user_create_success',
+            user: createdUser,
+            errors: null,
+          };
+          // this.mailerServiceClient
+          //   .send('mail_send', {
+          //     to: createdUser.email,
+          //     subject: 'Email confirmation',
+          //     html: `<center>
+          //     <b>Hi there, please confirm your email to use Smoothday.</b><br>
+          //     Use the following link for this.<br>
+          //     <a href="${this.userService.getConfirmationLink(
+          //       userLink.link,
+          //     )}"><b>Confirm The Email</b></a>
+          //     </center>`,
+          //   })
+          //   .toPromise();
+        } catch (e) {
+          result = {
+            status: HttpStatus.PRECONDITION_FAILED,
+            message: 'user_create_precondition_failed',
+            user: null,
+            errors: e.errors,
+          };
+        }
+      }
+    } else {
+      result = {
+        status: HttpStatus.BAD_REQUEST,
+        message: 'user_create_bad_request',
+        user: null,
+        errors: null,
+      };
+    }
+
+    console.log('resultt?????',result);
     
 
     return result;
