@@ -2,8 +2,9 @@ import { Controller, Get, HttpStatus } from '@nestjs/common';
 import { AppService } from './app.service';
 import { MessagePattern } from '@nestjs/microservices';
 import { IUserSearchResponse } from './interfaces/user-search-response.interface';
-import { IUser } from './interfaces/user.interface';
+import { IUser, IUserWithRole } from './interfaces/user.interface';
 import { IUserCreateResponse } from './interfaces/user-create-response.interface';
+import { Role } from './common/enums/role.enums';
 
 @Controller()
 export class AppController {
@@ -31,13 +32,28 @@ public testHandler() {
       const user = await this.appService.searchUser({
         email: searchParams.email,
       });
+        
+        console.log('user????????',user);
+        
+        
+        const role= await this.appService.searchUserRole({
+          userId: user[0].id,
+        })
 
+        const userData= 
+        {...user[0].toObject(),
+          role: role[0].role
+        }
+
+        console.log('userData',userData);
+        
+        
       if (user && user[0]) {
         if (await user[0].compareEncryptedPassword(searchParams.password)) {
           result = {
             status: HttpStatus.OK,
             message: 'user_search_by_credentials_success',
-            user: user[0],
+            user: userData,
           };
         } else {
           result = {
@@ -100,7 +116,7 @@ public testHandler() {
 
 
   @MessagePattern('user_create')
-  public async createUser(userParams: IUser): Promise<IUserCreateResponse> {
+  public async createUser(userParams: IUserWithRole): Promise<IUserCreateResponse> {
     let result: IUserCreateResponse;
     console.log('these are create user params',userParams);
     
@@ -127,6 +143,18 @@ public testHandler() {
           userParams.is_confirmed = false;
           const createdUser = await this.appService.createUser(userParams);
           console.log('createdUser???',createdUser);
+
+          const userRole = await this.appService.addUserRole(createdUser.id, userParams.role);
+
+          console.log('UserRoleUserRoleUserRole',userRole);
+
+          const createdUserWithRole = {
+            ...createdUser.toObject(), // Convert the Mongoose document to a plain object if needed
+            role: userRole.role, // Add the role from userRole
+          };
+          
+          console.log('createdUserWithRolecreatedUserWithRolecreatedUserWithRolecreatedUserWithRolecreatedUserWithRolecreatedUserWithRolecreatedUserWithRolecreatedUserWithRolecreatedUserWithRole',createdUserWithRole);
+          
           
           const userLink = await this.appService.createUserLink(
             createdUser.id,
@@ -135,7 +163,7 @@ public testHandler() {
           result = {
             status: HttpStatus.CREATED,
             message: 'user_create_success',
-            user: createdUser,
+            user: createdUserWithRole,
             errors: null,
           };
           // this.mailerServiceClient

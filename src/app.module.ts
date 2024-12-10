@@ -6,6 +6,8 @@ import { ConfigService } from './services/config/config.service';
 import { MongoConfigService } from './services/config/mongo-config.service';
 import { UserSchema } from './schemas/user.schema';
 import { UserLinkSchema } from './schemas/user-link.schema';
+import { UserRoleSchema } from './schemas/user-role.schema';
+
 
 @Module({
   imports: [
@@ -26,6 +28,11 @@ import { UserLinkSchema } from './schemas/user-link.schema';
         schema: UserLinkSchema,
         collection: 'user_links',
       },
+      {
+        name: "UserRoles",
+        schema: UserRoleSchema,
+        collection: 'user_roles'
+      }
     ]),
   ],
   controllers: [AppController],
