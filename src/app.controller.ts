@@ -1,14 +1,15 @@
 import { Controller, Get, HttpStatus } from '@nestjs/common';
 import { AppService } from './app.service';
-import { MessagePattern } from '@nestjs/microservices';
+import { EventPattern, MessagePattern } from '@nestjs/microservices';
 import { IUserSearchResponse } from './interfaces/user-search-response.interface';
 import { IUser, IUserWithRole } from './interfaces/user.interface';
 import { IUserCreateResponse } from './interfaces/user-create-response.interface';
 import { Role } from './common/enums/role.enums';
+import { IUserPurchaseHistory } from './interfaces/user-purchase-history.interface';
 
 @Controller()
 export class AppController {
-  constructor(private readonly appService: AppService) {}
+  constructor(private readonly appService: AppService) { }
 
   @Get()
   getHello(): string {
@@ -16,9 +17,9 @@ export class AppController {
   }
 
   @MessagePattern('test')
-public testHandler() {
-  console.log('Test message received');
-}
+  public testHandler() {
+    console.log('Test message received');
+  }
 
   @MessagePattern('user_search_by_credentials')
   public async searchUserByCredentials(searchParams: {
@@ -26,28 +27,29 @@ public testHandler() {
     password: string;
   }): Promise<IUserSearchResponse> {
     let result: IUserSearchResponse;
-    console.log('search params???????????',searchParams);
-    
+    console.log('search params???????????', searchParams);
+
     if (searchParams.email && searchParams.password) {
       const user = await this.appService.searchUser({
         email: searchParams.email,
       });
-        
-        console.log('user????????',user);
-        
-        
-        const role= await this.appService.searchUserRole({
-          userId: user[0].id,
-        })
 
-        const userData= 
-        {...user[0].toObject(),
-          role: role[0].role
-        }
+      console.log('user????????', user);
 
-        console.log('userData',userData);
-        
-        
+
+      const role = await this.appService.searchUserRole({
+        userId: user[0].id,
+      })
+
+      const userData =
+      {
+        ...user[0].toObject(),
+        role: role[0].role
+      }
+
+      console.log('userData', userData);
+
+
       if (user && user[0]) {
         if (await user[0].compareEncryptedPassword(searchParams.password)) {
           result = {
@@ -77,8 +79,6 @@ public testHandler() {
       };
     }
 
-    console.log('resultttt?????',result);
-    
     return result;
   }
 
@@ -109,7 +109,7 @@ public testHandler() {
     //     user: null,
     //   };
     // }
-    
+
 
     return result;
   }
@@ -118,8 +118,8 @@ public testHandler() {
   @MessagePattern('user_create')
   public async createUser(userParams: IUserWithRole): Promise<IUserCreateResponse> {
     let result: IUserCreateResponse;
-    console.log('these are create user params',userParams);
-    
+    console.log('these are create user params', userParams);
+
 
     if (userParams) {
       const usersWithEmail = await this.appService.searchUser({
@@ -142,20 +142,20 @@ public testHandler() {
         try {
           userParams.is_confirmed = false;
           const createdUser = await this.appService.createUser(userParams);
-          console.log('createdUser???',createdUser);
+          console.log('createdUser???', createdUser);
 
           const userRole = await this.appService.addUserRole(createdUser.id, userParams.role);
 
-          console.log('UserRoleUserRoleUserRole',userRole);
+          console.log('UserRoleUserRoleUserRole', userRole);
 
           const createdUserWithRole = {
             ...createdUser.toObject(), // Convert the Mongoose document to a plain object if needed
             role: userRole.role, // Add the role from userRole
           };
-          
-          console.log('createdUserWithRolecreatedUserWithRolecreatedUserWithRolecreatedUserWithRolecreatedUserWithRolecreatedUserWithRolecreatedUserWithRolecreatedUserWithRolecreatedUserWithRole',createdUserWithRole);
-          
-          
+
+          console.log('createdUserWithRolecreatedUserWithRolecreatedUserWithRolecreatedUserWithRolecreatedUserWithRolecreatedUserWithRolecreatedUserWithRolecreatedUserWithRolecreatedUserWithRole', createdUserWithRole);
+
+
           const userLink = await this.appService.createUserLink(
             createdUser.id,
           );
@@ -166,19 +166,7 @@ public testHandler() {
             user: createdUserWithRole,
             errors: null,
           };
-          // this.mailerServiceClient
-          //   .send('mail_send', {
-          //     to: createdUser.email,
-          //     subject: 'Email confirmation',
-          //     html: `<center>
-          //     <b>Hi there, please confirm your email to use Smoothday.</b><br>
-          //     Use the following link for this.<br>
-          //     <a href="${this.userService.getConfirmationLink(
-          //       userLink.link,
-          //     )}"><b>Confirm The Email</b></a>
-          //     </center>`,
-          //   })
-          //   .toPromise();
+
         } catch (e) {
           result = {
             status: HttpStatus.PRECONDITION_FAILED,
@@ -197,9 +185,17 @@ public testHandler() {
       };
     }
 
-    console.log('resultt?????',result);
-    
+    console.log('resultt?????', result);
+
 
     return result;
+  }
+
+  @EventPattern('purchase_history')
+  public async handlePurchaseHistoryEvent(data: { purchase: IUserPurchaseHistory }) {
+    const { purchase } = data;
+
+    // Save the purchase history in the database
+    await this.appService.updatePurchaseHistory(purchase);
   }
 }

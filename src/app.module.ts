@@ -7,6 +7,7 @@ import { MongoConfigService } from './services/config/mongo-config.service';
 import { UserSchema } from './schemas/user.schema';
 import { UserLinkSchema } from './schemas/user-link.schema';
 import { UserRoleSchema } from './schemas/user-role.schema';
+import { UserPurchaseHistorySchema } from './schemas/user-purchase-history.schema';
 
 
 @Module({
@@ -32,6 +33,11 @@ import { UserRoleSchema } from './schemas/user-role.schema';
         name: "UserRoles",
         schema: UserRoleSchema,
         collection: 'user_roles'
+      },
+      {
+        name: "UserPurchaseHistory",
+        schema: UserPurchaseHistorySchema,
+        collection: 'user_purchase_history'
       }
     ]),
   ],

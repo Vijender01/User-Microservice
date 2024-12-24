@@ -5,6 +5,7 @@ import { Model } from 'mongoose';
 import { IUserLink } from './interfaces/user-link.schema';
 import { Role } from './common/enums/role.enums';
 import { IUserRole } from './interfaces/user-role.interface';
+import { IUserPurchaseHistory } from './interfaces/user-purchase-history.interface';
 
 
 @Injectable()
@@ -13,6 +14,7 @@ export class AppService {
     @InjectModel('User') private readonly userModel: Model<IUser>,
     @InjectModel('UserLink') private readonly userLinkModel: Model<IUserLink>,
     @InjectModel('UserRoles') private readonly userRoleModel: Model<IUserRole>,
+    @InjectModel('UserPurchaseHistory') private readonly userPurchaseHistoryModel: Model<IUserPurchaseHistory>,
 
   ){}
   getHello(): string {
@@ -49,5 +51,12 @@ export class AppService {
       user_id: id,
     });
     return await userLinkModel.save();
+  }
+
+  public async updatePurchaseHistory(purchase: IUserPurchaseHistory){
+    const newPurchase = new this.userPurchaseHistoryModel(purchase);
+
+    // Save the purchase data into the database
+    return await newPurchase.save();
   }
 }
