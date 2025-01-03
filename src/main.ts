@@ -7,7 +7,7 @@ async function bootstrap() {
     AppModule, {
     transport: Transport.RMQ,
     options: {
-      urls: ['amqps://obhlbcvp:vuMB_HPYPo769PiIYXfx-FqjXvgjq9QB@armadillo.rmq.cloudamqp.com/obhlbcvp'],
+      urls: [process.env.RABBIT_MQ_URL],
       queue: 'main_queue',
       queueOptions: {
         durable: false
@@ -15,6 +15,5 @@ async function bootstrap() {
     },
   });
   await app.listen(); 
-  console.log('Microservice Started');
 }
 bootstrap();
