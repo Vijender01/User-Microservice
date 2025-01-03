@@ -3,19 +3,23 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigService } from './services/config/config.service';
-import { MongoConfigService } from './services/config/mongo-config.service';
 import { UserSchema } from './schemas/user.schema';
 import { UserLinkSchema } from './schemas/user-link.schema';
 import { UserRoleSchema } from './schemas/user-role.schema';
 import { UserPurchaseHistorySchema } from './schemas/user-purchase-history.schema';
+import { ConfigModule } from '@nestjs/config';
 
 
 @Module({
   imports: [
-    // MongooseModule.forRootAsync({
-    //   useClass: MongoConfigService,
-    // }),
-    MongooseModule.forRoot('mongodb://localhost:27017/nest_main',{
+    // ConfigModule loads environment variables and configuration settings
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: '.env', // Load environment variables from the .env file
+    }),
+
+    // MongooseModule sets up MongoDB connection and schema registration
+    MongooseModule.forRoot(process.env.MONGODB_URL, {
       autoCreate: true
     }),
     MongooseModule.forFeature([
@@ -44,4 +48,4 @@ import { UserPurchaseHistorySchema } from './schemas/user-purchase-history.schem
   controllers: [AppController],
   providers: [AppService, ConfigService],
 })
-export class AppModule {}
+export class AppModule { }

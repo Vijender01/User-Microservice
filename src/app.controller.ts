@@ -4,77 +4,72 @@ import { EventPattern, MessagePattern } from '@nestjs/microservices';
 import { IUserSearchResponse } from './interfaces/user-search-response.interface';
 import { IUser, IUserWithRole } from './interfaces/user.interface';
 import { IUserCreateResponse } from './interfaces/user-create-response.interface';
-import { Role } from './common/enums/role.enums';
 import { IUserPurchaseHistory } from './interfaces/user-purchase-history.interface';
+import { RESPONSE_MESSAGES } from './common/constants/response-messages';
 
 @Controller()
 export class AppController {
   constructor(private readonly appService: AppService) { }
 
+  // Endpoint to return a simple "Hello World" message
   @Get()
   getHello(): string {
     return this.appService.getHello();
   }
 
-  @MessagePattern('test')
-  public testHandler() {
-    console.log('Test message received');
-  }
-
+  // Handles user search by credentials (email and password)
   @MessagePattern('user_search_by_credentials')
   public async searchUserByCredentials(searchParams: {
     email: string;
     password: string;
   }): Promise<IUserSearchResponse> {
     let result: IUserSearchResponse;
-    console.log('search params???????????', searchParams);
 
-    if (searchParams.email && searchParams.password) {
-      const user = await this.appService.searchUser({
-        email: searchParams.email,
-      });
+    try {
+      // Check if email and password are provided
+      if (searchParams.email && searchParams.password) {
+        // Search for the user by email
+        const user = await this.appService.searchUser({
+          email: searchParams.email,
+        });
 
-      console.log('user????????', user);
+        // Retrieve the user's role
+        const role = await this.appService.searchUserRole({
+          userId: user[0]?.id,
+        });
 
+        // Construct user data with role
+        const userData = {
+          ...user[0]?.toObject(),
+          role: role[0]?.role,
+        };
 
-      const role = await this.appService.searchUserRole({
-        userId: user[0].id,
-      })
-
-      const userData =
-      {
-        ...user[0].toObject(),
-        role: role[0].role
-      }
-
-      console.log('userData', userData);
-
-
-      if (user && user[0]) {
-        if (await user[0].compareEncryptedPassword(searchParams.password)) {
+        // Verify the password and construct the response
+        if (user && user[0] && await user[0].compareEncryptedPassword(searchParams.password)) {
           result = {
             status: HttpStatus.OK,
-            message: 'user_search_by_credentials_success',
+            message: RESPONSE_MESSAGES.SEARCH_USER_BY_CREDENTIALS_SUCCESS,
             user: userData,
           };
         } else {
           result = {
             status: HttpStatus.NOT_FOUND,
-            message: 'user_search_by_credentials_not_match',
+            message: RESPONSE_MESSAGES.SEARCH_USER_BY_CREDENTIALS_NO_MATCH,
             user: null,
           };
         }
       } else {
         result = {
           status: HttpStatus.NOT_FOUND,
-          message: 'user_search_by_credentials_not_found',
+          message: RESPONSE_MESSAGES.SEARCH_USER_BY_CREDENTIALS_NOT_FOUND,
           user: null,
         };
       }
-    } else {
+    } catch (error) {
+      console.error('Error in searchUserByCredentials:', error);
       result = {
-        status: HttpStatus.NOT_FOUND,
-        message: 'user_search_by_credentials_not_found',
+        status: HttpStatus.INTERNAL_SERVER_ERROR,
+        message: 'An error occurred while searching for the user.',
         user: null,
       };
     }
@@ -82,120 +77,88 @@ export class AppController {
     return result;
   }
 
-
-  @MessagePattern('user_get_by_id')
-  public async getUserById(id: string): Promise<IUserSearchResponse> {
-    let result: IUserSearchResponse;
-
-    // if (id) {
-    //   const user = await this.userService.searchUserById(id);
-    //   if (user) {
-    //     result = {
-    //       status: HttpStatus.OK,
-    //       message: 'user_get_by_id_success',
-    //       user,
-    //     };
-    //   } else {
-    //     result = {
-    //       status: HttpStatus.NOT_FOUND,
-    //       message: 'user_get_by_id_not_found',
-    //       user: null,
-    //     };
-    //   }
-    // } else {
-    //   result = {
-    //     status: HttpStatus.BAD_REQUEST,
-    //     message: 'user_get_by_id_bad_request',
-    //     user: null,
-    //   };
-    // }
-
-
-    return result;
-  }
-
-
+  // Handles user creation and assigns a role
   @MessagePattern('user_create')
   public async createUser(userParams: IUserWithRole): Promise<IUserCreateResponse> {
     let result: IUserCreateResponse;
-    console.log('these are create user params', userParams);
 
+    try {
+      console.log('User creation parameters:', userParams);
 
-    if (userParams) {
-      const usersWithEmail = await this.appService.searchUser({
-        email: userParams.email,
-      });
+      if (userParams) {
+        // Check if the email is already in use
+        const usersWithEmail = await this.appService.searchUser({
+          email: userParams.email,
+        });
 
-      if (usersWithEmail && usersWithEmail.length > 0) {
-        result = {
-          status: HttpStatus.CONFLICT,
-          message: 'user_create_conflict',
-          user: null,
-          errors: {
-            email: {
-              message: 'Email already exists',
-              path: 'email',
+        if (usersWithEmail && usersWithEmail.length > 0) {
+          result = {
+            status: HttpStatus.CONFLICT,
+            message: 'User creation conflict',
+            user: null,
+            errors: {
+              email: {
+                message: RESPONSE_MESSAGES.EMAIL_ALREADY_EXISTs,
+                path: 'email',
+              },
             },
-          },
-        };
-      } else {
-        try {
+          };
+        } else {
+          // Create the user and assign a role
           userParams.is_confirmed = false;
           const createdUser = await this.appService.createUser(userParams);
-          console.log('createdUser???', createdUser);
-
           const userRole = await this.appService.addUserRole(createdUser.id, userParams.role);
 
-          console.log('UserRoleUserRoleUserRole', userRole);
-
           const createdUserWithRole = {
-            ...createdUser.toObject(), // Convert the Mongoose document to a plain object if needed
-            role: userRole.role, // Add the role from userRole
+            ...createdUser.toObject(),
+            role: userRole.role,
           };
 
-          console.log('createdUserWithRolecreatedUserWithRolecreatedUserWithRolecreatedUserWithRolecreatedUserWithRolecreatedUserWithRolecreatedUserWithRolecreatedUserWithRolecreatedUserWithRole', createdUserWithRole);
+          await this.appService.createUserLink(createdUser.id);
 
+          delete createdUser.password; // Remove sensitive information from the response
 
-          const userLink = await this.appService.createUserLink(
-            createdUser.id,
-          );
-          delete createdUser.password;
           result = {
             status: HttpStatus.CREATED,
-            message: 'user_create_success',
+            message: RESPONSE_MESSAGES.USER_CREATE_SUCCESS,
             user: createdUserWithRole,
             errors: null,
           };
-
-        } catch (e) {
-          result = {
-            status: HttpStatus.PRECONDITION_FAILED,
-            message: 'user_create_precondition_failed',
-            user: null,
-            errors: e.errors,
-          };
         }
+      } else {
+        result = {
+          status: HttpStatus.BAD_REQUEST,
+          message: RESPONSE_MESSAGES.USER_CREATE_BAD_REQUEST,
+          user: null,
+          errors: null,
+        };
       }
-    } else {
+    } catch (error) {
+      console.error('Error in createUser:', error);
       result = {
-        status: HttpStatus.BAD_REQUEST,
-        message: 'user_create_bad_request',
+        status: HttpStatus.PRECONDITION_FAILED,
+        message: RESPONSE_MESSAGES.USER_CREATE_PRECONDITION_FAILED,
         user: null,
-        errors: null,
+        errors: error.errors,
       };
     }
 
-    console.log('resultt?????', result);
-
-
+    console.log('User creation result:', result);
     return result;
   }
 
+  // Handles events related to user purchase history
   @EventPattern('purchase_history')
   public async handlePurchaseHistoryEvent(data: { purchase: IUserPurchaseHistory }) {
-    const { purchase } = data;
+    try {
+      const { purchase } = data;
 
-    // Save the purchase history in the database
-    await this.appService.updatePurchaseHistory(purchase);
+      // Save the purchase history in the database
+      await this.appService.updatePurchaseHistory(purchase);
+
+      console.log('Purchase history saved successfully.');
+    } catch (error) {
+      console.error('Error in handlePurchaseHistoryEvent:', error);
+    }
   }
 }
